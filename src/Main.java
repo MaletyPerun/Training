@@ -10,35 +10,45 @@ import java.util.stream.Stream;
 class Main {
     public static void main(String[] args) throws IOException {
 
-        // TODO: 20.09.2022 разобраться как запускать программу с аргументами и через консоль
-//        args[0] = "C://input2.txt";
-//        String fileName = args[0];
-        // прочитали имя файла
-        String fileName = "C:\\Users\\Алексей\\Desktop\\input3.txt";
-        // создали объект по имени файла
-        Path path = readPath(fileName);
-        System.out.println("path = " + path);
-        // прочитал в список линии из файла
-        List<String> lines = readFile(path);
-        // определил счетчики слов одного и второго списка
-        if (lines == null)
-            throw new RuntimeException();
-        int firstCount = Integer.parseInt(lines.get(0));
-        int secondCount = Integer.parseInt(lines.get(firstCount + 1));
-        System.out.println(firstCount + " " + secondCount);
-        // выделил первый лист
-        List<String> firstList = lines.subList(1, firstCount + 1);
-        // выделил второй лист
-        List<String> secondList = lines.subList(firstCount + 2, lines.size());
-        // подготовка к записи в новый файл с бизнес-логикой
-        // первая итерация сопоставления
-        List<String> output = prepareToWrite(firstList, secondList, firstCount, secondCount);
-        // финальная итерация сопоставления (недостающих)
-        List<String> perOutput = finalPrepareToWrite(output, secondList, firstCount, secondCount);
+        // имя файла
+        String fileName = args[0];
+//        String fileName = "C:\\Users\\Алексей\\Desktop\\input2.txt";
 
-        System.out.println(perOutput);
+        Path path = Paths.get(fileName);
+
+        // построчное чтение из файла
+        List<String> lines = readFile(path);
+
+        // определение счетчиков в файле и первичная валидация
+        if (lines == null)
+            throw new RuntimeException("It`s not a file .txt");
+        int firstCount;
+        int secondCount;
+        try {
+            firstCount = Integer.parseInt(lines.get(0));
+            secondCount = Integer.parseInt(lines.get(firstCount + 1));
+        } catch (Exception e) {
+            throw new RuntimeException("Index-error in the file");
+        }
+
+        // первый часть списка
+        List<String> firstList = lines.subList(1, firstCount + 1);
+
+        // вторая часть списка
+        List<String> secondList = lines.subList(firstCount + 2, lines.size());
+
+        if ((firstList.size() != firstCount) || (secondList.size() != secondCount))
+            throw new InvalidPropertiesFormatException("The size(s) of list(s) not match with count(s)");
+
+        // бизнес-логика и подготовка к записи в новый файл
+        // первая итерация сопоставления
+        List<String> prepareOutput = firstPrepareToWrite(firstList, secondList, firstCount, secondCount);
+
+        // финальная итерация сопоставления (недостающих)
+        List<String> finalOutput = finalPrepareToWrite(prepareOutput, secondList, firstCount, secondCount);
+
         // записть в новый файл необходимый результат
-        write(perOutput, fileName);
+        write(finalOutput, fileName);
     }
 
     private static List<String> finalPrepareToWrite(List<String> output, List<String> secondList, int firstCount, int secondCount) {
@@ -46,32 +56,30 @@ class Main {
         if (firstCount != secondCount)
             return output;
 
-        // список из output со словами, которые не нашли себе пару
-        List<String> listNotFound = output.stream()
-                .filter(s -> s.contains("?"))
-                .toList();
+        List<String> listNotFound = new ArrayList<>();
+        List<String> listFound = new ArrayList<>();
 
-        // список из output со словами, которые нашли себе пару
-        List<String> listFound = output.stream()
-                .filter(s -> !s.contains("?"))
-                .toList();
+        for (String x : output) {
+            if (x.contains("?"))
+                listNotFound.add(x);
+            else
+                listFound.add(x);
+        }
 
         // список слов из второго списка, которые не нашли себе пару с первым списком 
         List<String> listNotFoundFromSecond = secondList.stream()
                 .filter(s1 -> output.stream()
                         .noneMatch(s2 -> s2.contains(s1) || s1.contains(s2)))
                 .toList();
-
         return addWithoutMatches(listFound, listNotFound, listNotFoundFromSecond);
     }
 
     private static List<String> addWithoutMatches(List<String> listFound, List<String> listNotFound, List<String> listNotFoundFromSecond) {
         List<String> addMatches = new ArrayList<>(listFound);
-        System.out.println("addMatches near cicle = " + addMatches);
+
         for (int i = 0; i < listNotFound.size(); i++) {
             addMatches.add(listNotFound.get(i).replace("?", listNotFoundFromSecond.get(i)));
         }
-
         return addMatches;
     }
 
@@ -80,7 +88,7 @@ class Main {
         Files.write(Paths.get(outputFileName), output, StandardOpenOption.CREATE);
     }
 
-    private static List<String> prepareToWrite(List<String> first, List<String> second, int firstCount, int secondCount) {
+    private static List<String> firstPrepareToWrite(List<String> first, List<String> second, int firstCount, int secondCount) {
 
         List<String> output = new ArrayList<>(first.stream()
                 .map(s -> s.concat(":").concat(second.stream()
@@ -90,7 +98,7 @@ class Main {
                 .toList());
 
         if (output.size() < Math.max(firstCount, secondCount)) {
-            List<String> addOutput = prepareToWrite(second, first, firstCount, secondCount);
+            List<String> addOutput = firstPrepareToWrite(second, first, firstCount, secondCount);
 
             List<String> addSecOutput = addOutput.stream()
                     .filter(s -> s.contains("?"))
@@ -98,7 +106,6 @@ class Main {
 
             output.addAll(addSecOutput);
         }
-
         return output;
     }
 
@@ -111,11 +118,7 @@ class Main {
         try (Stream<String> lineStream = Files.lines(path)) {
             return lineStream.collect(Collectors.toList());
         } catch (Exception ignored) {
+            return null;
         }
-        return null;
-    }
-
-    private static Path readPath(String arg) {
-        return Paths.get(arg);
     }
 }
