@@ -12,8 +12,6 @@ class Main {
 
         // имя файла
         String fileName = args[0];
-//        String fileName = "C:\\Users\\Алексей\\Desktop\\input2.txt";
-
         Path path = Paths.get(fileName);
 
         // построчное чтение из файла
@@ -21,7 +19,7 @@ class Main {
 
         // определение счетчиков в файле и первичная валидация
         if (lines == null)
-            throw new RuntimeException("It`s not a file .txt");
+            throw new FileNotFoundException("It`s not a file .txt");
         int firstCount;
         int secondCount;
         try {
@@ -38,7 +36,7 @@ class Main {
         List<String> secondList = lines.subList(firstCount + 2, lines.size());
 
         if ((firstList.size() != firstCount) || (secondList.size() != secondCount))
-            throw new InvalidPropertiesFormatException("The size(s) of list(s) not match with count(s)");
+            throw new RuntimeException("The size(s) of list(s) not match with count(s)");
 
         // бизнес-логика и подготовка к записи в новый файл
         // первая итерация сопоставления
@@ -76,7 +74,6 @@ class Main {
 
     private static List<String> addWithoutMatches(List<String> listFound, List<String> listNotFound, List<String> listNotFoundFromSecond) {
         List<String> addMatches = new ArrayList<>(listFound);
-
         for (int i = 0; i < listNotFound.size(); i++) {
             addMatches.add(listNotFound.get(i).replace("?", listNotFoundFromSecond.get(i)));
         }
@@ -89,21 +86,18 @@ class Main {
     }
 
     private static List<String> firstPrepareToWrite(List<String> first, List<String> second, int firstCount, int secondCount) {
-
         List<String> output = new ArrayList<>(first.stream()
                 .map(s -> s.concat(":").concat(second.stream()
                         .filter(s2 -> check(s, s2))
                         .findAny()
                         .orElse("?")))
                 .toList());
-
         if (output.size() < Math.max(firstCount, secondCount)) {
             List<String> addOutput = firstPrepareToWrite(second, first, firstCount, secondCount);
 
             List<String> addSecOutput = addOutput.stream()
                     .filter(s -> s.contains("?"))
                     .toList();
-
             output.addAll(addSecOutput);
         }
         return output;
@@ -111,7 +105,8 @@ class Main {
 
     private static boolean check(String str1, String str2) {
         return Arrays.stream(str1.split(" "))
-                .anyMatch(s1 -> Arrays.stream(str2.split(" ")).anyMatch(s2 -> s1.contains(s2) || s2.contains(s1)));
+                .anyMatch(s1 -> Arrays.stream(str2.split(" "))
+                        .anyMatch(s2 -> s1.contains(s2) || s2.contains(s1)));
     }
 
     private static List<String> readFile(Path path) {
